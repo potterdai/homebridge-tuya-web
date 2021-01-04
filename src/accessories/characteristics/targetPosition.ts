@@ -10,6 +10,7 @@ import { TuyaWebCharacteristic } from "./base";
 import { BaseAccessory } from "../BaseAccessory";
 import { DeviceState } from "../../api/response";
 import delay from "../../helpers/delay";
+import { CoverAccessory } from "../CoverAccessory";
 
 export class TargetPositionCharacteristic extends TuyaWebCharacteristic {
   public static Title = "Characteristic.TargetPosition";
@@ -33,13 +34,8 @@ export class TargetPositionCharacteristic extends TuyaWebCharacteristic {
   }
 
   public getRemoteValue(callback: CharacteristicGetCallback): void {
-    this.accessory
-      .getDeviceState()
-      .then((data) => {
-        this.debug("[GET] %s", data?.state);
-        this.updateValue(data, callback);
-      })
-      .catch(this.accessory.handleError("GET", callback));
+    const a = <CoverAccessory>this.accessory;
+    callback && callback(null, a.target);
   }
 
   public setRemoteValue(
@@ -48,50 +44,59 @@ export class TargetPositionCharacteristic extends TuyaWebCharacteristic {
   ): void {
     const value = (homekitValue as number) === 0 ? 0 : 1;
 
-    const data = { state: value === 0 ? 3 : 1 };
+    const coverAccessory = <CoverAccessory>this.accessory;
+    const target = value ? 100 : 0;
+
+    this.debug("Setting targetPosition to %d", target);
 
     this.accessory
-      .setDeviceState("turnOnOff", { value }, data)
+      .setDeviceState("turnOnOff", { value }, value)
       .then(async () => {
-        this.debug("[SET] %s", value);
+        this.debug("[SET] turnOnOff command sent with value %s", value);
         callback();
 
-        await delay(1000);
-        this.accessory.setTuyaCharacteristic(
+        this.debug("Setting targetPosition to %d", target);
+        coverAccessory.target = target;
+        this.accessory.setCharacteristic(
+          this.accessory.platform.Characteristic.TargetPosition,
+          target,
+          true
+        );
+
+        coverAccessory.motor = value
+          ? this.accessory.platform.Characteristic.PositionState.INCREASING
+          : this.accessory.platform.Characteristic.PositionState.DECREASING;
+        this.accessory.setCharacteristic(
+          this.accessory.platform.Characteristic.PositionState,
+          coverAccessory.motor,
+          true
+        );
+
+        await delay(5000);
+
+        this.debug(
+          "Setting currentPosition to %d and positionState to STOPPED",
+          target
+        );
+
+        coverAccessory.position = target;
+        this.accessory.setCharacteristic(
           this.accessory.platform.Characteristic.CurrentPosition,
-          data
+          coverAccessory.position,
+          true
+        );
+
+        coverAccessory.motor = this.accessory.platform.Characteristic.PositionState.STOPPED;
+        this.accessory.setCharacteristic(
+          this.accessory.platform.Characteristic.PositionState,
+          this.accessory.platform.Characteristic.PositionState.STOPPED,
+          true
         );
       })
       .catch(this.accessory.handleError("SET", callback));
   }
 
   updateValue(data: DeviceState, callback?: CharacteristicGetCallback): void {
-    if (!isNaN(Number(String(data?.state)))) {
-      //State is a number and probably 1, 2 or 3
-      const state = Number(data.state);
-      const stateValue = {
-        1: 100,
-        2: 50,
-        3: 0,
-      }[state];
-
-      this.accessory.setCharacteristic(
-        this.homekitCharacteristic,
-        stateValue,
-        !callback
-      );
-      callback && callback(null, stateValue);
-    } else if (["true", "false"].includes(String(data?.state).toLowerCase())) {
-      const stateValue = String(data.state).toLowerCase() === "true" ? 100 : 0;
-      this.accessory.setCharacteristic(
-        this.homekitCharacteristic,
-        stateValue,
-        !callback
-      );
-      callback && callback(null, stateValue);
-    } else {
-      callback &&
-        callback(new Error(`Unexpected state value provided: ${data?.state}`));
-    }
+    callback && callback(null, (<CoverAccessory>this.accessory).target);
   }
 }
