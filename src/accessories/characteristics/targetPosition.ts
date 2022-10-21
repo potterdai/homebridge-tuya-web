@@ -42,10 +42,10 @@ export class TargetPositionCharacteristic extends TuyaWebCharacteristic {
     homekitValue: CharacteristicValue,
     callback: CharacteristicSetCallback
   ): void {
-    const value = homekitValue as number;
+    const value = Math.round(homekitValue as number);
 
     const coverAccessory = <CoverAccessory>this.accessory;
-    const target = Math.round(value * 100);
+    const target = value;
 
     this.debug("Setting targetPosition to %d", target);
 
