@@ -42,17 +42,17 @@ export class TargetPositionCharacteristic extends TuyaWebCharacteristic {
     homekitValue: CharacteristicValue,
     callback: CharacteristicSetCallback
   ): void {
-    const value = (homekitValue as number) === 0 ? 0 : 1;
+    const value = homekitValue as number;
 
     const coverAccessory = <CoverAccessory>this.accessory;
-    const target = value ? 100 : 0;
+    const target = Math.round(value * 100);
 
     this.debug("Setting targetPosition to %d", target);
 
     this.accessory
-      .setDeviceState("turnOnOff", { value }, value)
+      .setDeviceState("windowCoverSet", { value }, value)
       .then(async () => {
-        this.debug("[SET] turnOnOff command sent with value %s", value);
+        this.debug("[SET] windowCoverSet command sent with value %s", value);
         callback();
 
         this.debug("Setting targetPosition to %d", target);

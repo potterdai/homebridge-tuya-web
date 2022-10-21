@@ -94,6 +94,7 @@ export type TuyaApiMethod =
   | "startStop"
   | "temperatureSet"
   | "turnOnOff"
+  | "windowCoverSet"
   | "windSpeedSet";
 export type TuyaApiPayload<
   Method extends TuyaApiMethod
@@ -111,6 +112,8 @@ export type TuyaApiPayload<
   ? { value: number }
   : Method extends "turnOnOff"
   ? { value: 0 | 1 }
+  : Method extends "windowCoverSet"
+  ? { value: number }
   : Method extends "windSpeedSet"
   ? { value: number }
   : never;
